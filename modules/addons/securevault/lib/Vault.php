@@ -516,12 +516,33 @@ class Vault
                     }).then(function (r) { return r.json(); });
                 }
 
-                // ---- build FAB + modal ----
+                // ---- build FAB or Sidebar button ----
                 var fab = document.createElement('button');
                 fab.type = 'button';
-                fab.className = 'sv-fab';
-                fab.innerText = '🔒 Add Sensitive Data';
-                document.body.appendChild(fab);
+
+                var sidebarBody = null;
+                var ticketInfoPanel = Array.from(document.querySelectorAll('.panel, .card, .portlet')).find(function (el) {
+                    var text = el.innerText || '';
+                    return text.indexOf('Ticket Information') !== -1 && text.indexOf('Department') !== -1;
+                });
+                if (ticketInfoPanel) {
+                    sidebarBody = ticketInfoPanel.querySelector('.panel-body, .card-body, .body');
+                }
+
+                if (sidebarBody) {
+                    fab.className = 'btn btn-primary btn-block sv-sidebar-btn';
+                    fab.style.position = 'static';
+                    fab.style.display = 'block';
+                    fab.style.width = '100%';
+                    fab.style.marginTop = '15px';
+                    fab.style.zIndex = 'auto';
+                    fab.innerText = 'Add Sensitive Data';
+                    sidebarBody.appendChild(fab);
+                } else {
+                    fab.className = 'sv-fab';
+                    fab.innerText = '🔒 Add Sensitive Data';
+                    document.body.appendChild(fab);
+                }
 
                 var overlay = document.createElement('div');
                 overlay.className = 'sv-overlay';

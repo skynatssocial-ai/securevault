@@ -42,13 +42,23 @@ add_hook('ClientAreaPage', 1, function ($vars) {
 // Output loader wired to all client output hooks to ensure compatibility
 // with custom themes that may omit {$footeroutput} or {$headoutput} in templates.
 add_hook('ClientAreaHeaderOutput', 1, function ($vars) {
-    return Vault::renderClientWidgetLoader($vars);
+    $html = Vault::renderClientWidgetLoader($vars);
+    if ($html) {
+        file_put_contents(__DIR__ . '/debug.log', "[" . date('Y-m-d H:i:s') . "] HeaderOutput rendered " . strlen($html) . " bytes\n", FILE_APPEND);
+    }
+    return $html;
 });
 add_hook('ClientAreaHeadOutput', 1, function ($vars) {
-    return Vault::renderClientWidgetLoader($vars);
+    $html = Vault::renderClientWidgetLoader($vars);
+    if ($html) {
+        file_put_contents(__DIR__ . '/debug.log', "[" . date('Y-m-d H:i:s') . "] HeadOutput rendered " . strlen($html) . " bytes\n", FILE_APPEND);
+    }
+    return $html;
 });
 add_hook('ClientAreaFooterOutput', 1, function ($vars) {
-    return Vault::renderClientWidgetLoader($vars);
+    $html = Vault::renderClientWidgetLoader($vars);
+    file_put_contents(__DIR__ . '/debug.log', "[" . date('Y-m-d H:i:s') . "] FooterOutput rendered " . strlen($html) . " bytes (template=" . (Vault::getClientPageVars()['templatefile'] ?? 'none') . ")\n", FILE_APPEND);
+    return $html;
 });
 
 // -----------------------------------------------------------------

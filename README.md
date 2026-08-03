@@ -14,9 +14,7 @@ layer, none of which were touched by the Smarty `{php}`-tag removal in 9.0.
 
 ## What it does
 
-- **Admin area**: a "🔒 Secure Vault" banner at the top of the View Ticket
-  page (via the `AdminAreaViewTicketPage` hook, which is documented to
-  output HTML directly - so it's always visible, regardless of theme).
+- **Admin area**: a native "Add Sensitive Data" button integrated dynamically into the ticket reply box toolbar (with a fallback button at the top of the page if the toolbar isn't found). This allows staff to access the vault without leaving the reply field.
 - **Client area, existing ticket**: a floating "🔒 Secure Vault" button in
   the bottom-right corner of `viewticket.php`. This is deliberately *not*
   injected into the page's existing layout - earlier versions tried that
@@ -85,10 +83,12 @@ No template edits are required for either area.
 - Enforce HTTPS site-wide - values travel to `ajax.php` in plaintext over
   the wire (protected only by TLS) on add/reveal.
 - `ajax.php` checks WHMCS's own session variables (`$_SESSION['adminid']` /
-  `$_SESSION['uid']`) and, for clients, verifies the ticket's `userid`
-  matches the logged-in client. There's no separate CSRF token beyond the
-  session cookie - wire in `\WHMCS\Session\Token` if you want
-  defense-in-depth here.
+  `$_SESSION['uid']`). For clients, it verifies the ticket's `userid` matches
+  the logged-in client. For administrators, it enforces support department-level
+  access permission checks (preventing staff from accessing vault data of tickets
+  in departments they are not assigned to).
+- CSRF validation is enforced on all state-changing requests (`add`, `delete`)
+  using WHMCS's native `\WHMCS\Session\Token::validate` helper.
 - "Deleted" means a SQL `DELETE` - it's gone. There's also a manual "Purge
   ALL vault entries now" button on **Setup > Addon Modules > Secure Ticket
   Vault** if you ever need to wipe everything immediately.

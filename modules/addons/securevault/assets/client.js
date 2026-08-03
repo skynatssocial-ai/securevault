@@ -10,12 +10,13 @@
     if (window.sv_client_widget_loaded) { return; }
     window.sv_client_widget_loaded = true;
 
-    var cfg = window.sv_config || {};
-    var ajaxUrl   = cfg.ajaxUrl   || '';
-    var ticketId  = cfg.ticketId  || null;
-    var isNew     = cfg.isNew     || false;
-    var csrfToken = cfg.csrfToken || '';
-    var STORAGE_KEY = 'securevault_pending_newticket';
+    function init() {
+        var cfg = window.sv_config || {};
+        var ajaxUrl   = cfg.ajaxUrl   || '';
+        var ticketId  = cfg.ticketId  || null;
+        var isNew     = cfg.isNew     || false;
+        var csrfToken = cfg.csrfToken || '';
+        var STORAGE_KEY = 'securevault_pending_newticket';
 
     // ----------------------------------------------------------------
     // Utilities
@@ -267,4 +268,11 @@
         }, true);
     }
 
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
 }());

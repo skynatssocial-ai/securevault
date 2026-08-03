@@ -738,19 +738,50 @@ class Vault
 
             // Dynanically inject into the WHMCS View Ticket Reply Toolbar
             var btnContainer = null;
-            var moreOptions = Array.from(document.querySelectorAll('button, a, input')).find(function (el) {
-                var text = el.innerText || el.value || '';
-                return text.indexOf('More options') !== -1;
-            });
-            if (moreOptions) {
-                btnContainer = moreOptions.closest('.btn-group') || moreOptions.parentElement;
+            var insertBeforeNode = null;
+
+            // Try to find the Return to Ticket List checkbox/label
+            var returnCb = document.querySelector('input[name="return"]') || 
+                           document.querySelector('input[name="return_to_list"]') || 
+                           document.getElementById('return') ||
+                           document.getElementById('cbReturn');
+            
+            if (returnCb) {
+                // If the checkbox is wrapped in a label or a bootstrap checkbox wrapper
+                if (returnCb.closest('label')) {
+                    insertBeforeNode = returnCb.closest('label');
+                    btnContainer = insertBeforeNode.parentElement;
+                } else if (returnCb.closest('.checkbox-inline') || returnCb.closest('.checkbox')) {
+                    insertBeforeNode = returnCb.closest('.checkbox-inline') || returnCb.closest('.checkbox');
+                    btnContainer = insertBeforeNode.parentElement;
+                } else {
+                    insertBeforeNode = returnCb;
+                    btnContainer = returnCb.parentElement;
+                }
             } else {
-                var replyBtn = Array.from(document.querySelectorAll('input[type="submit"], button')).find(function (el) {
+                // Fallback: Try to find the More options button
+                var moreOptions = Array.from(document.querySelectorAll('button, a, input')).find(function (el) {
                     var text = el.innerText || el.value || '';
-                    return text.indexOf('Reply') !== -1;
+                    return text.indexOf('More options') !== -1;
                 });
-                if (replyBtn) {
-                    btnContainer = replyBtn.parentElement;
+                if (moreOptions) {
+                    var group = moreOptions.closest('.btn-group') || moreOptions;
+                    btnContainer = group.parentElement;
+                    insertBeforeNode = group.nextSibling;
+                } else {
+                    // Fallback: Try to find the Reply submit button
+                    var replyBtn = document.querySelector('input[type="submit"][value="Reply"]') || 
+                                   document.querySelector('input[type="submit"][value*="Reply"]') ||
+                                   Array.from(document.querySelectorAll('button[type="submit"]')).find(function(el) {
+                                       return el.innerText.indexOf('Reply') !== -1;
+                                   }) ||
+                                   Array.from(document.querySelectorAll('input[type="submit"]')).find(function(el) {
+                                       return el.value.indexOf('Reply') !== -1;
+                                   });
+                    if (replyBtn) {
+                        btnContainer = replyBtn.parentElement;
+                        insertBeforeNode = replyBtn;
+                    }
                 }
             }
 
@@ -767,12 +798,8 @@ class Vault
                 fab.style.borderColor = '#d43f3a';
                 fab.innerText = 'Add Sensitive Data';
 
-                var returnLabel = Array.from(btnContainer.querySelectorAll('label')).find(function(el) {
-                    return el.innerText.indexOf('Return to Ticket List') !== -1;
-                }) || btnContainer.querySelector('input[name="return"]') || btnContainer.querySelector('.checkbox');
-                
-                if (returnLabel) {
-                    btnContainer.insertBefore(fab, returnLabel);
+                if (insertBeforeNode) {
+                    btnContainer.insertBefore(fab, insertBeforeNode);
                 } else {
                     btnContainer.appendChild(fab);
                 }

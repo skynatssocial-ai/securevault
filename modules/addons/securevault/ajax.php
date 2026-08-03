@@ -29,26 +29,14 @@ function sv_respond($data)
 $action = $_POST['action'] ?? '';
 
 // ---------------------------------------------------------------
-// Determine caller identity
+// Determine caller session status
 // ---------------------------------------------------------------
 
 $isAdmin = isset($_SESSION['adminid']) && (int) $_SESSION['adminid'] > 0;
-$isClient = !$isAdmin && isset($_SESSION['uid']) && (int) $_SESSION['uid'] > 0;
+$isClient = isset($_SESSION['uid']) && (int) $_SESSION['uid'] > 0;
 
 if (!$isAdmin && !$isClient) {
     sv_respond(['success' => false, 'message' => 'Not authenticated.']);
-}
-
-$callerType = $isAdmin ? 'admin' : 'client';
-$callerId = $isAdmin ? (int) $_SESSION['adminid'] : (int) $_SESSION['uid'];
-$callerName = null;
-
-if ($isAdmin) {
-    $admin = Capsule::table('tbladmins')->where('id', $callerId)->first();
-    $callerName = $admin ? trim($admin->firstname . ' ' . $admin->lastname) : 'Staff';
-} else {
-    $client = Capsule::table('tblclients')->where('id', $callerId)->first();
-    $callerName = $client ? trim($client->firstname . ' ' . $client->lastname) : 'Client';
 }
 
 // ---------------------------------------------------------------
@@ -65,9 +53,7 @@ if ($isAdmin) {
 $ticketId = isset($_POST['ticketid']) ? (int) $_POST['ticketid'] : 0;
 
 // ---------------------------------------------------------------
-// Authorization: for clients, verify the ticket actually belongs to them.
-// For admins, WHMCS's own admin-area access control already gated the
-// page this widget is embedded on.
+// Authorization Checkers
 // ---------------------------------------------------------------
 
 function sv_client_owns_ticket($ticketId, $clientId)
@@ -91,6 +77,11 @@ function sv_admin_has_ticket_access($ticketId, $adminId)
         return false;
     }
     
+    // Full Administrators (typically role ID 1) bypass department restrictions in WHMCS
+    if ((int) $admin->roleid === 1) {
+        return true;
+    }
+    
     // In WHMCS, supportdepts contains a comma-separated list of department IDs
     $assignedDepts = array_filter(array_map('trim', explode(',', $admin->supportdepts)));
     return in_array((string) $ticket->deptid, $assignedDepts, true);
@@ -100,30 +91,42 @@ if (!$ticketId && $action !== 'reveal' && $action !== 'delete') {
     sv_respond(['success' => false, 'message' => 'Missing or invalid ticket reference.']);
 }
 
-if ($ticketId) {
-    if ($isClient && !sv_client_owns_ticket($ticketId, $callerId)) {
-        sv_respond(['success' => false, 'message' => 'Not authorized for this ticket.']);
+// Determine target ticket ID to check authorization for this request
+$targetTicketId = $ticketId;
+if (in_array($action, ['reveal', 'delete'], true)) {
+    $entryId = (int) ($_POST['id'] ?? 0);
+    $entryTicketId = Vault::getTicketIdForEntry($entryId);
+    if (!$entryTicketId) {
+        sv_respond(['success' => false, 'message' => 'Entry not found.']);
     }
-    if ($isAdmin && !sv_admin_has_ticket_access($ticketId, $callerId)) {
+    $targetTicketId = $entryTicketId;
+}
+
+// Run authorization check: user must be authorized either as a client owning the ticket, OR as an admin with department access
+$clientAuthorized = $isClient && sv_client_owns_ticket($targetTicketId, (int) $_SESSION['uid']);
+$adminAuthorized = $isAdmin && sv_admin_has_ticket_access($targetTicketId, (int) $_SESSION['adminid']);
+
+if (!$clientAuthorized && !$adminAuthorized) {
+    if (in_array($action, ['reveal', 'delete'], true)) {
+        sv_respond(['success' => false, 'message' => 'Not authorized for this entry.']);
+    } else {
         sv_respond(['success' => false, 'message' => 'Not authorized for this ticket.']);
     }
 }
 
-// For reveal/delete, resolve the ticket from the entry itself, then re-check
-// client and admin ownership/permissions.
-if (in_array($action, ['reveal', 'delete'], true)) {
-    $entryId = (int) ($_POST['id'] ?? 0);
-    $entryTicketId = Vault::getTicketIdForEntry($entryId);
+// ---------------------------------------------------------------
+// Establish Caller Identity
+// ---------------------------------------------------------------
+$callerType = $adminAuthorized ? 'admin' : 'client';
+$callerId = $adminAuthorized ? (int) $_SESSION['adminid'] : (int) $_SESSION['uid'];
+$callerName = null;
 
-    if (!$entryTicketId) {
-        sv_respond(['success' => false, 'message' => 'Entry not found.']);
-    }
-    if ($isClient && !sv_client_owns_ticket($entryTicketId, $callerId)) {
-        sv_respond(['success' => false, 'message' => 'Not authorized for this entry.']);
-    }
-    if ($isAdmin && !sv_admin_has_ticket_access($entryTicketId, $callerId)) {
-        sv_respond(['success' => false, 'message' => 'Not authorized for this entry.']);
-    }
+if ($adminAuthorized) {
+    $admin = Capsule::table('tbladmins')->where('id', $callerId)->first();
+    $callerName = $admin ? trim($admin->firstname . ' ' . $admin->lastname) : 'Staff';
+} else {
+    $client = Capsule::table('tblclients')->where('id', $callerId)->first();
+    $callerName = $client ? trim($client->firstname . ' ' . $client->lastname) : 'Client';
 }
 
 // CSRF validation for state-changing actions

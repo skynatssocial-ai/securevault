@@ -12,6 +12,17 @@ if (!defined('WHMCS')) {
 class Vault
 {
     protected static $keyCache = null;
+    protected static $clientPageVars = [];
+
+    public static function storeClientPageVars($vars)
+    {
+        self::$clientPageVars = is_array($vars) ? $vars : [];
+    }
+
+    public static function getClientPageVars()
+    {
+        return self::$clientPageVars;
+    }
 
     // ---------------------------------------------------------------
     // Encryption
@@ -422,8 +433,9 @@ class Vault
      * correctly even when Friendly URLs are enabled (the rewrite still
      * passes the real tid/c through to PHP - only the address bar changes).
      */
-    public static function renderClientWidgetLoader($vars = [])
+    public static function renderClientWidgetLoader($dummyVars = [])
     {
+        $vars = array_merge(self::getClientPageVars(), is_array($dummyVars) ? $dummyVars : []);
         $script = basename((string) ($_SERVER['SCRIPT_NAME'] ?? ''));
         $template = $vars['templatefile'] ?? '';
 

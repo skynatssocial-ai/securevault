@@ -32,6 +32,13 @@ add_hook('AdminAreaViewTicketPage', 1, function ($vars) {
 // version tried splitting detection across ClientAreaPageViewTicket +
 // ClientAreaFooterOutput and relied on them firing in that order within
 // the same request, which WHMCS does not actually guarantee).
+
+// Capture smarty template variables for footer loader
+add_hook('ClientAreaPage', 1, function ($vars) {
+    Vault::storeClientPageVars($vars);
+    return [];
+});
+
 add_hook('ClientAreaFooterOutput', 1, function ($vars) {
     return Vault::renderClientWidgetLoader($vars);
 });

@@ -425,8 +425,9 @@ class Vault
     public static function renderClientWidgetLoader($vars = [])
     {
         $script = basename((string) ($_SERVER['SCRIPT_NAME'] ?? ''));
+        $template = $vars['templatefile'] ?? '';
 
-        if ($script === 'viewticket.php') {
+        if ($script === 'viewticket.php' || $template === 'viewticket') {
             // Prefer whatever WHMCS already assigned to the template (passed
             // into this hook as $vars, since ClientAreaFooterOutput receives
             // "all currently defined template variables"); fall back to the
@@ -447,7 +448,7 @@ class Vault
             return self::renderClientWidget((int) $ticket->id, false);
         }
 
-        if ($script === 'submitticket.php') {
+        if ($script === 'submitticket.php' || strpos($template, 'supportticketsubmit') !== false) {
             return self::renderClientWidget(null, true);
         }
 
@@ -468,219 +469,226 @@ class Vault
         $jsonToken = json_encode($csrfToken);
 
         return <<<HTML
-        <style>{$styles}</style>
         <script>
         (function () {
-            var ajaxUrl = {$jsonAjaxUrl};
-            // Resolved server-side (see hooks.php) - the real internal
-            // ticket id for an existing ticket, or null on the new-ticket
-            // page where no ticket exists yet.
-            var ticketId = {$jsonTicketId};
-            var isNew = {$jsonIsNew};
-            var csrfToken = {$jsonToken};
-            var STORAGE_KEY = 'securevault_pending_newticket';
+            function init() {
+                var ajaxUrl = {$jsonAjaxUrl};
+                // Resolved server-side (see hooks.php) - the real internal
+                // ticket id for an existing ticket, or null on the new-ticket
+                // page where no ticket exists yet.
+                var ticketId = {$jsonTicketId};
+                var isNew = {$jsonIsNew};
+                var csrfToken = {$jsonToken};
+                var STORAGE_KEY = 'securevault_pending_newticket';
 
-            function loadPending() {
-                try { return JSON.parse(sessionStorage.getItem(STORAGE_KEY) || '[]'); }
-                catch (e) { return []; }
-            }
-            function savePending(items) {
-                try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(items)); } catch (e) {}
-            }
-
-            var pending = isNew ? loadPending() : [];
-            if (!isNew) {
-                try { sessionStorage.removeItem(STORAGE_KEY); } catch (e) {}
-            }
-
-            function esc(s) {
-                var d = document.createElement('div');
-                d.innerText = s == null ? '' : s;
-                return d.innerHTML;
-            }
-
-            function post(action, data) {
-                data = data || {};
-                data.action = action;
-                data.token = csrfToken;
-                if (ticketId) { data.ticketid = ticketId; }
-                var body = Object.keys(data).map(function (k) {
-                    return encodeURIComponent(k) + '=' + encodeURIComponent(data[k]);
-                }).join('&');
-                return fetch(ajaxUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    credentials: 'same-origin',
-                    body: body
-                }).then(function (r) { return r.json(); });
-            }
-
-            // ---- build FAB + modal ----
-            var fab = document.createElement('button');
-            fab.type = 'button';
-            fab.className = 'sv-fab';
-            fab.innerText = '🔒 Add Sensitive Data';
-            document.body.appendChild(fab);
-
-            var overlay = document.createElement('div');
-            overlay.className = 'sv-overlay';
-            overlay.innerHTML =
-                '<div class="sv-modal">' +
-                    '<div class="sv-modal-header">' +
-                        '<h4>🔒 Add Sensitive Data</h4>' +
-                        '<button type="button" class="sv-close">&times;</button>' +
-                    '</div>' +
-                    '<div class="sv-sub">' + (isNew
-                        ? 'Anything added here will be attached to this ticket once you submit it, and permanently deleted when the ticket is closed.'
-                        : 'Everything here is permanently deleted the moment this ticket is closed.') + '</div>' +
-                    '<div class="sv-list"></div>' +
-                    '<div class="sv-form-group">' +
-                        '<input type="text" class="sv-label" placeholder="Label (e.g. cPanel login)">' +
-                        '<textarea class="sv-value" placeholder="Value(s) - e.g.\nUsername: admin\nPassword: ...\nURL: ..."></textarea>' +
-                    '</div>' +
-                    '<div class="sv-actions">' +
-                        '<button type="button" class="sv-btn sv-add sv-btn-primary">Add to vault</button>' +
-                    '</div>' +
-                '</div>';
-            document.body.appendChild(overlay);
-
-            var listEl = overlay.querySelector('.sv-list');
-            var labelInput = overlay.querySelector('.sv-label');
-            var valueInput = overlay.querySelector('.sv-value');
-
-            fab.addEventListener('click', function () {
-                overlay.classList.add('sv-open');
-                if (!isNew) { load(); } else { renderPending(); }
-            });
-            overlay.querySelector('.sv-close').addEventListener('click', function () {
-                overlay.classList.remove('sv-open');
-            });
-            overlay.addEventListener('click', function (ev) {
-                if (ev.target === overlay) { overlay.classList.remove('sv-open'); }
-            });
-
-            function renderRows(rows, opts) {
-                if (!rows.length) {
-                    listEl.innerHTML = '<div class="sv-empty">No entries yet.</div>';
-                    return;
+                function loadPending() {
+                    try { return JSON.parse(sessionStorage.getItem(STORAGE_KEY) || '[]'); }
+                    catch (e) { return []; }
                 }
-                var html = '<div class="sv-table-container"><table><tr><th>Label</th><th>Values</th><th>Added by</th><th></th></tr>';
-                rows.forEach(function (e, idx) {
-                    var revealCell = opts.pending
-                        ? '<span class="sv-value">' + esc(e.value) + '</span>'
-                        : '<span class="sv-masked">\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022</span> <button type="button" class="sv-link-btn sv-reveal">reveal</button>';
-                    
-                    var badge = '';
-                    if (opts.pending) {
-                        badge = ' <span class="sv-badge sv-badge-pending">pending</span>';
-                    } else if (e.added_by_type === 'admin') {
-                        badge = ' <span class="sv-badge sv-badge-admin">staff</span>';
-                    } else {
-                        badge = ' <span class="sv-badge sv-badge-client">client</span>';
+                function savePending(items) {
+                    try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(items)); } catch (e) {}
+                }
+
+                var pending = isNew ? loadPending() : [];
+                if (!isNew) {
+                    try { sessionStorage.removeItem(STORAGE_KEY); } catch (e) {}
+                }
+
+                function esc(s) {
+                    var d = document.createElement('div');
+                    d.innerText = s == null ? '' : s;
+                    return d.innerHTML;
+                }
+
+                function post(action, data) {
+                    data = data || {};
+                    data.action = action;
+                    data.token = csrfToken;
+                    if (ticketId) { data.ticketid = ticketId; }
+                    var body = Object.keys(data).map(function (k) {
+                        return encodeURIComponent(k) + '=' + encodeURIComponent(data[k]);
+                    }).join('&');
+                    return fetch(ajaxUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        credentials: 'same-origin',
+                        body: body
+                    }).then(function (r) { return r.json(); });
+                }
+
+                // ---- build FAB + modal ----
+                var fab = document.createElement('button');
+                fab.type = 'button';
+                fab.className = 'sv-fab';
+                fab.innerText = '🔒 Add Sensitive Data';
+                document.body.appendChild(fab);
+
+                var overlay = document.createElement('div');
+                overlay.className = 'sv-overlay';
+                overlay.innerHTML =
+                    '<div class="sv-modal">' +
+                        '<div class="sv-modal-header">' +
+                            '<h4>🔒 Add Sensitive Data</h4>' +
+                            '<button type="button" class="sv-close">&times;</button>' +
+                        '</div>' +
+                        '<div class="sv-sub">' + (isNew
+                            ? 'Anything added here will be attached to this ticket once you submit it, and permanently deleted when the ticket is closed.'
+                            : 'Everything here is permanently deleted the moment this ticket is closed.') + '</div>' +
+                        '<div class="sv-list"></div>' +
+                        '<div class="sv-form-group">' +
+                            '<input type="text" class="sv-label" placeholder="Label (e.g. cPanel login)">' +
+                            '<textarea class="sv-value" placeholder="Value(s) - e.g.\nUsername: admin\nPassword: ...\nURL: ..."></textarea>' +
+                        '</div>' +
+                        '<div class="sv-actions">' +
+                            '<button type="button" class="sv-btn sv-add sv-btn-primary">Add to vault</button>' +
+                        '</div>' +
+                    '</div>';
+                document.body.appendChild(overlay);
+
+                var listEl = overlay.querySelector('.sv-list');
+                var labelInput = overlay.querySelector('.sv-label');
+                var valueInput = overlay.querySelector('.sv-value');
+
+                fab.addEventListener('click', function () {
+                    overlay.classList.add('sv-open');
+                    if (!isNew) { load(); } else { renderPending(); }
+                });
+                overlay.querySelector('.sv-close').addEventListener('click', function () {
+                    overlay.classList.remove('sv-open');
+                });
+                overlay.addEventListener('click', function (ev) {
+                    if (ev.target === overlay) { overlay.classList.remove('sv-open'); }
+                });
+
+                function renderRows(rows, opts) {
+                    if (!rows.length) {
+                        listEl.innerHTML = '<div class="sv-empty">No entries yet.</div>';
+                        return;
                     }
-                    var adderName = esc(opts.pending ? 'you' : (e.added_by_name || e.added_by_type));
-
-                    html += '<tr data-id="' + (opts.pending ? idx : e.id) + '">' +
-                        '<td style="font-weight:600;color:#334155;">' + esc(e.label) + '</td>' +
-                        '<td class="sv-value-cell">' + revealCell + '</td>' +
-                        '<td class="sv-meta">' + adderName + badge + '</td>' +
-                        '<td><button type="button" class="sv-link-btn sv-delete" style="color:#ef4444;">remove</button></td>' +
-                        '</tr>';
-                });
-                html += '</table></div>';
-                listEl.innerHTML = html;
-            }
-
-            function load() {
-                listEl.innerHTML = '<div class="sv-empty">Loading...</div>';
-                post('list').then(function (res) {
-                    if (res.success) { renderRows(res.entries, { pending: false }); }
-                    else { listEl.innerHTML = '<div class="sv-empty">' + esc(res.message || 'Failed to load.') + '</div>'; }
-                }).catch(function (err) {
-                    listEl.innerHTML = '<div class="sv-empty">Connection error or session expired.</div>';
-                });
-            }
-
-            function renderPending() {
-                renderRows(pending, { pending: true });
-            }
-
-            listEl.addEventListener('click', function (ev) {
-                var row = ev.target.closest('tr');
-                if (!row) { return; }
-                var id = row.getAttribute('data-id');
-
-                if (ev.target.classList.contains('sv-reveal')) {
-                    post('reveal', { id: id }).then(function (res) {
-                        if (res.success) {
-                            row.querySelector('.sv-value-cell').innerHTML = '<span class="sv-value">' + esc(res.value) + '</span>';
+                    var html = '<div class="sv-table-container"><table><tr><th>Label</th><th>Values</th><th>Added by</th><th></th></tr>';
+                    rows.forEach(function (e, idx) {
+                        var revealCell = opts.pending
+                            ? '<span class="sv-value">' + esc(e.value) + '</span>'
+                            : '<span class="sv-masked">\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022</span> <button type="button" class="sv-link-btn sv-reveal">reveal</button>';
+                        
+                        var badge = '';
+                        if (opts.pending) {
+                            badge = ' <span class="sv-badge sv-badge-pending">pending</span>';
+                        } else if (e.added_by_type === 'admin') {
+                            badge = ' <span class="sv-badge sv-badge-admin">staff</span>';
                         } else {
-                            alert(res.message || 'Failed to decrypt.');
+                            badge = ' <span class="sv-badge sv-badge-client">client</span>';
                         }
+                        var adderName = esc(opts.pending ? 'you' : (e.added_by_name || e.added_by_type));
+
+                        html += '<tr data-id="' + (opts.pending ? idx : e.id) + '">' +
+                            '<td style="font-weight:600;color:#334155;">' + esc(e.label) + '</td>' +
+                            '<td class="sv-value-cell">' + revealCell + '</td>' +
+                            '<td class="sv-meta">' + adderName + badge + '</td>' +
+                            '<td><button type="button" class="sv-link-btn sv-delete" style="color:#ef4444;">remove</button></td>' +
+                            '</tr>';
+                    });
+                    html += '</table></div>';
+                    listEl.innerHTML = html;
+                }
+
+                function load() {
+                    listEl.innerHTML = '<div class="sv-empty">Loading...</div>';
+                    post('list').then(function (res) {
+                        if (res.success) { renderRows(res.entries, { pending: false }); }
+                        else { listEl.innerHTML = '<div class="sv-empty">' + esc(res.message || 'Failed to load.') + '</div>'; }
                     }).catch(function (err) {
-                        alert('Connection error or session expired.');
+                        listEl.innerHTML = '<div class="sv-empty">Connection error or session expired.</div>';
                     });
                 }
 
-                if (ev.target.classList.contains('sv-delete')) {
-                    if (!confirm('Remove this entry permanently?')) { return; }
-                    if (isNew) {
-                        pending.splice(parseInt(id, 10), 1);
-                        savePending(pending);
-                        renderPending();
-                    } else {
-                        post('delete', { id: id }).then(function (res) {
-                            if (res.success) { row.remove(); }
-                            else { alert(res.message || 'Could not delete entry.'); }
+                function renderPending() {
+                    renderRows(pending, { pending: true });
+                }
+
+                listEl.addEventListener('click', function (ev) {
+                    var row = ev.target.closest('tr');
+                    if (!row) { return; }
+                    var id = row.getAttribute('data-id');
+
+                    if (ev.target.classList.contains('sv-reveal')) {
+                        post('reveal', { id: id }).then(function (res) {
+                            if (res.success) {
+                                row.querySelector('.sv-value-cell').innerHTML = '<span class="sv-value">' + esc(res.value) + '</span>';
+                            } else {
+                                alert(res.message || 'Failed to decrypt.');
+                            }
                         }).catch(function (err) {
                             alert('Connection error or session expired.');
                         });
                     }
-                }
-            });
 
-            overlay.querySelector('.sv-add').addEventListener('click', function () {
-                var label = labelInput.value.trim();
-                var value = valueInput.value.trim();
-                if (!label || !value) { alert('Please fill in both the label and the value(s).'); return; }
-
-                if (isNew) {
-                    pending.push({ label: label, value: value });
-                    savePending(pending);
-                    labelInput.value = ''; valueInput.value = '';
-                    renderPending();
-                } else {
-                    post('add', { label: label, value: value }).then(function (res) {
-                        if (res.success) {
-                            labelInput.value = ''; valueInput.value = '';
-                            load();
+                    if (ev.target.classList.contains('sv-delete')) {
+                        if (!confirm('Remove this entry permanently?')) { return; }
+                        if (isNew) {
+                            pending.splice(parseInt(id, 10), 1);
+                            savePending(pending);
+                            renderPending();
                         } else {
-                            alert(res.message || 'Could not add entry.');
+                            post('delete', { id: id }).then(function (res) {
+                                if (res.success) { row.remove(); }
+                                else { alert(res.message || 'Could not delete entry.'); }
+                            }).catch(function (err) {
+                                alert('Connection error or session expired.');
+                            });
                         }
-                    }).catch(function (err) {
-                        alert('Connection error or session expired.');
-                    });
-                }
-            });
+                    }
+                });
 
-            // On the new-ticket page, attach staged entries to the actual
-            // ticket submission form right before it posts, then clear the
-            // staged copy so it isn't reused if the same tab opens another
-            // new ticket later.
-            if (isNew) {
-                document.addEventListener('submit', function (ev) {
-                    var form = ev.target;
-                    if (!(form instanceof HTMLFormElement)) { return; }
-                    if (!form.querySelector('textarea[name="message"]')) { return; }
-                    var items = loadPending();
-                    if (!items.length) { return; }
-                    var hidden = document.createElement('input');
-                    hidden.type = 'hidden';
-                    hidden.name = 'securevault_pending';
-                    hidden.value = JSON.stringify(items);
-                    form.appendChild(hidden);
-                    // Do not clear sessionStorage immediately to prevent data loss on validation failure.
-                }, true);
+                overlay.querySelector('.sv-add').addEventListener('click', function () {
+                    var label = labelInput.value.trim();
+                    var value = valueInput.value.trim();
+                    if (!label || !value) { alert('Please fill in both the label and the value(s).'); return; }
+
+                    if (isNew) {
+                        pending.push({ label: label, value: value });
+                        savePending(pending);
+                        labelInput.value = ''; valueInput.value = '';
+                        renderPending();
+                    } else {
+                        post('add', { label: label, value: value }).then(function (res) {
+                            if (res.success) {
+                                labelInput.value = ''; valueInput.value = '';
+                                load();
+                            } else {
+                                alert(res.message || 'Could not add entry.');
+                            }
+                        }).catch(function (err) {
+                            alert('Connection error or session expired.');
+                        });
+                    }
+                });
+
+                // On the new-ticket page, attach staged entries to the actual
+                // ticket submission form right before it posts, then clear the
+                // staged copy so it isn't reused if the same tab opens another
+                // new ticket later.
+                if (isNew) {
+                    document.addEventListener('submit', function (ev) {
+                        var form = ev.target;
+                        if (!(form instanceof HTMLFormElement)) { return; }
+                        if (!form.querySelector('textarea[name="message"]')) { return; }
+                        var items = loadPending();
+                        if (!items.length) { return; }
+                        var hidden = document.createElement('input');
+                        hidden.type = 'hidden';
+                        hidden.name = 'securevault_pending';
+                        hidden.value = JSON.stringify(items);
+                        form.appendChild(hidden);
+                        // Do not clear sessionStorage immediately to prevent data loss on validation failure.
+                    }, true);
+                }
+            }
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', init);
+            } else {
+                init();
             }
         })();
         </script>

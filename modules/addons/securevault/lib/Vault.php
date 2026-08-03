@@ -428,24 +428,25 @@ class Vault
         $template = $vars['templatefile'] ?? '';
 
         if ($script === 'viewticket.php' || $template === 'viewticket') {
-            // Prefer whatever WHMCS already assigned to the template (passed
-            // into this hook as $vars, since ClientAreaFooterOutput receives
-            // "all currently defined template variables"); fall back to the
-            // raw querystring, which PHP sees correctly even under a
-            // Friendly URLs rewrite.
-            $tid = $vars['tid'] ?? ($_GET['tid'] ?? null);
-            $c = $vars['c'] ?? ($_GET['c'] ?? null);
+            // First try resolving via the internal ticket ID template variables directly
+            $ticketId = $vars['id'] ?? ($vars['ticketid'] ?? null);
 
-            if ($tid === null || $c === null) {
+            if (!$ticketId) {
+                // If not found, resolve from the masked ticket number (tid)
+                $tid = $vars['tid'] ?? ($_GET['tid'] ?? null);
+                if ($tid !== null) {
+                    $ticket = Capsule::table('tbltickets')->where('tid', $tid)->first();
+                    if ($ticket) {
+                        $ticketId = $ticket->id;
+                    }
+                }
+            }
+
+            if (!$ticketId) {
                 return '';
             }
 
-            $ticket = Capsule::table('tbltickets')->where('tid', $tid)->where('c', $c)->first();
-            if (!$ticket) {
-                return '';
-            }
-
-            return self::renderClientWidget((int) $ticket->id, false);
+            return self::renderClientWidget((int) $ticketId, false);
         }
 
         if ($script === 'submitticket.php' || strpos($template, 'supportticketsubmit') !== false) {

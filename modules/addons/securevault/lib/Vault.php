@@ -576,7 +576,7 @@ class Vault
                         '<div class="sv-list"></div>' +
                         '<div class="sv-form-group">' +
                             '<input type="text" class="sv-label" placeholder="Label (e.g. cPanel login)">' +
-                            '<textarea class="sv-value" placeholder="Value(s) - e.g.\nUsername: admin\nPassword: ...\nURL: ..."></textarea>' +
+                            '<textarea class="sv-value" placeholder="Value(s) - e.g.\\nUsername: admin\\nPassword: ...\\nURL: ..."></textarea>' +
                         '</div>' +
                         '<div class="sv-actions">' +
                             '<button type="button" class="sv-btn sv-add sv-btn-primary">Add to vault</button>' +
@@ -608,7 +608,7 @@ class Vault
                     rows.forEach(function (e, idx) {
                         var revealCell = opts.pending
                             ? '<span class="sv-value">' + esc(e.value) + '</span>'
-                            : '<span class="sv-masked">\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022</span> <button type="button" class="sv-link-btn sv-reveal">reveal</button>';
+                            : '<span class="sv-masked">\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022</span> <button type="button" class="sv-link-btn sv-reveal">reveal</button>';
                         
                         var badge = '';
                         if (opts.pending) {

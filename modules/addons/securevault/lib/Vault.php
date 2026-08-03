@@ -482,21 +482,28 @@ class Vault
         $jsonToken = json_encode($csrfToken);
 
         return <<<HTML
+        <style>{$styles}</style>
         <script>
         (function () {
             function init() {
-                var debugDiv = document.createElement('div');
-                debugDiv.style.cssText = 'position:fixed;bottom:10px;left:10px;background:#fff;border:2px solid red;color:#000;padding:10px;z-index:999999;max-width:300px;font-size:12px;box-shadow:0 0 10px rgba(0,0,0,0.5);';
-                debugDiv.innerHTML = '<strong>SecureVault Debug:</strong><br>';
-                document.body.appendChild(debugDiv);
-                
+                var debugDiv = null;
                 function log(msg) {
-                    var p = document.createElement('div');
-                    p.innerText = msg;
-                    debugDiv.appendChild(p);
+                    console.log("SecureVault: " + msg);
+                    if (debugDiv) {
+                        var p = document.createElement('div');
+                        p.innerText = msg;
+                        debugDiv.appendChild(p);
+                    }
                 }
 
                 try {
+                    debugDiv = document.createElement('div');
+                    debugDiv.style.cssText = 'position:fixed;bottom:10px;left:10px;background:#fff;border:2px solid red;color:#000;padding:10px;z-index:999999;max-width:300px;font-size:12px;box-shadow:0 0 10px rgba(0,0,0,0.5);';
+                    debugDiv.innerHTML = '<strong>SecureVault Debug:</strong><br>';
+                    if (document.body) {
+                        document.body.appendChild(debugDiv);
+                    }
+
                     log("init() started");
                     var ajaxUrl = {$jsonAjaxUrl};
                 // Resolved server-side (see hooks.php) - the real internal

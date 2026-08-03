@@ -439,8 +439,6 @@ class Vault
         $script = basename((string) ($_SERVER['SCRIPT_NAME'] ?? ''));
         $template = $vars['templatefile'] ?? '';
 
-        file_put_contents(dirname(__DIR__) . '/debug.log', "[" . date('Y-m-d H:i:s') . "] Loader executing. Script: $script, Template: $template, vars_id: " . ($vars['id'] ?? 'null') . ", vars_ticketid: " . ($vars['ticketid'] ?? 'null') . ", vars_tid: " . ($vars['tid'] ?? 'null') . ", get_tid: " . ($_GET['tid'] ?? 'null') . "\n", FILE_APPEND);
-
         if ($script === 'viewticket.php' || $template === 'viewticket') {
             // First try resolving via the internal ticket ID template variables directly
             $ticketId = $vars['id'] ?? ($vars['ticketid'] ?? null);
@@ -456,8 +454,6 @@ class Vault
                 }
             }
 
-            file_put_contents(dirname(__DIR__) . '/debug.log', "[" . date('Y-m-d H:i:s') . "] viewticket resolved ticketId: " . ($ticketId ?? 'null') . "\n", FILE_APPEND);
-
             if (!$ticketId) {
                 return '';
             }
@@ -466,7 +462,6 @@ class Vault
         }
 
         if ($script === 'submitticket.php' || strpos($template, 'supportticketsubmit') !== false) {
-            file_put_contents(dirname(__DIR__) . '/debug.log', "[" . date('Y-m-d H:i:s') . "] submitticket page rendering widget\n", FILE_APPEND);
             return self::renderClientWidget(null, true);
         }
 
@@ -490,7 +485,8 @@ class Vault
         <script>
         (function () {
             function init() {
-                var ajaxUrl = {$jsonAjaxUrl};
+                try {
+                    var ajaxUrl = {$jsonAjaxUrl};
                 // Resolved server-side (see hooks.php) - the real internal
                 // ticket id for an existing ticket, or null on the new-ticket
                 // page where no ticket exists yet.
@@ -538,26 +534,37 @@ class Vault
                 var fab = document.createElement('button');
                 fab.type = 'button';
 
-                var sidebarBody = null;
-                var panels = document.querySelectorAll('.panel, .card, .portlet');
-                for (var i = 0; i < panels.length; i++) {
-                    var el = panels[i];
-                    var text = el.innerText || '';
-                    if (text.indexOf('Ticket Information') !== -1 && text.indexOf('Department') !== -1) {
-                        sidebarBody = el.querySelector('.panel-body, .card-body, .body');
-                        break;
+                var ticketInfoPanel = document.getElementById('Ticket_Information') || 
+                                      document.querySelector('[id*="Ticket_Information"]') || 
+                                      document.querySelector('[id*="TicketInformation"]');
+                
+                if (!ticketInfoPanel) {
+                    var panels = document.querySelectorAll('.panel, .card, .portlet');
+                    for (var i = 0; i < panels.length; i++) {
+                        var el = panels[i];
+                        var text = el.innerText || '';
+                        if (text.indexOf('Ticket Information') !== -1 && text.indexOf('Department') !== -1) {
+                            ticketInfoPanel = el;
+                            break;
+                        }
                     }
                 }
 
-                if (sidebarBody) {
+                if (ticketInfoPanel && ticketInfoPanel.parentNode) {
                     fab.className = 'btn btn-primary btn-block sv-sidebar-btn';
                     fab.style.position = 'static';
                     fab.style.display = 'block';
                     fab.style.width = '100%';
                     fab.style.marginTop = '15px';
+                    fab.style.marginBottom = '15px';
                     fab.style.zIndex = 'auto';
                     fab.innerText = 'Add Sensitive Data';
-                    sidebarBody.appendChild(fab);
+                    
+                    if (ticketInfoPanel.nextSibling) {
+                        ticketInfoPanel.parentNode.insertBefore(fab, ticketInfoPanel.nextSibling);
+                    } else {
+                        ticketInfoPanel.parentNode.appendChild(fab);
+                    }
                 } else {
                     fab.className = 'sv-fab';
                     fab.innerText = '🔒 Add Sensitive Data';
@@ -723,6 +730,9 @@ class Vault
                         form.appendChild(hidden);
                         // Do not clear sessionStorage immediately to prevent data loss on validation failure.
                     }, true);
+                }
+                } catch (e) {
+                    alert("SecureVault Error: " + e.message + "\nStack: " + e.stack);
                 }
             }
 

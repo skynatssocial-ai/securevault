@@ -539,12 +539,14 @@ class Vault
                 fab.type = 'button';
 
                 var sidebarBody = null;
-                var ticketInfoPanel = Array.from(document.querySelectorAll('.panel, .card, .portlet')).find(function (el) {
+                var panels = document.querySelectorAll('.panel, .card, .portlet');
+                for (var i = 0; i < panels.length; i++) {
+                    var el = panels[i];
                     var text = el.innerText || '';
-                    return text.indexOf('Ticket Information') !== -1 && text.indexOf('Department') !== -1;
-                });
-                if (ticketInfoPanel) {
-                    sidebarBody = ticketInfoPanel.querySelector('.panel-body, .card-body, .body');
+                    if (text.indexOf('Ticket Information') !== -1 && text.indexOf('Department') !== -1) {
+                        sidebarBody = el.querySelector('.panel-body, .card-body, .body');
+                        break;
+                    }
                 }
 
                 if (sidebarBody) {
@@ -808,10 +810,16 @@ class Vault
                     }
                 } else {
                     // Fallback: Try to find the More options button
-                    var moreOptions = Array.from(document.querySelectorAll('button, a, input')).find(function (el) {
+                    var moreOptions = null;
+                    var elements = document.querySelectorAll('button, a, input');
+                    for (var j = 0; j < elements.length; j++) {
+                        var el = elements[j];
                         var text = el.innerText || el.value || '';
-                        return text.indexOf('More options') !== -1;
-                    });
+                        if (text.indexOf('More options') !== -1) {
+                            moreOptions = el;
+                            break;
+                        }
+                    }
                     if (moreOptions) {
                         var group = moreOptions.closest('.btn-group') || moreOptions;
                         btnContainer = group.parentElement;
@@ -819,13 +827,19 @@ class Vault
                     } else {
                         // Fallback: Try to find the Reply submit button
                         var replyBtn = document.querySelector('input[type="submit"][value="Reply"]') || 
-                                       document.querySelector('input[type="submit"][value*="Reply"]') ||
-                                       Array.from(document.querySelectorAll('button[type="submit"]')).find(function(el) {
-                                           return el.innerText.indexOf('Reply') !== -1;
-                                       }) ||
-                                       Array.from(document.querySelectorAll('input[type="submit"]')).find(function(el) {
-                                           return el.value.indexOf('Reply') !== -1;
-                                       });
+                                       document.querySelector('input[type="submit"][value*="Reply"]');
+                        
+                        if (!replyBtn) {
+                            var buttons = document.querySelectorAll('button[type="submit"], input[type="submit"]');
+                            for (var k = 0; k < buttons.length; k++) {
+                                var btn = buttons[k];
+                                var btnText = btn.innerText || btn.value || '';
+                                if (btnText.indexOf('Reply') !== -1) {
+                                    replyBtn = btn;
+                                    break;
+                                }
+                            }
+                        }
                         if (replyBtn) {
                             btnContainer = replyBtn.parentElement;
                             insertBeforeNode = replyBtn;

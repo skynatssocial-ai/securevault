@@ -35,11 +35,13 @@ add_hook('AdminAreaViewTicketPage', 1, function ($vars) {
 
 // Capture smarty template variables for footer loader
 add_hook('ClientAreaPage', 1, function ($vars) {
+    file_put_contents(__DIR__ . '/debug.log', "[" . date('Y-m-d H:i:s') . "] ClientAreaPage called. Template: " . ($vars['templatefile'] ?? 'none') . "\n", FILE_APPEND);
     Vault::storeClientPageVars($vars);
     return [];
 });
 
 add_hook('ClientAreaFooterOutput', 1, function ($vars) {
+    file_put_contents(__DIR__ . '/debug.log', "[" . date('Y-m-d H:i:s') . "] ClientAreaFooterOutput called. Vars keys: " . implode(',', array_keys($vars)) . "\n", FILE_APPEND);
     return Vault::renderClientWidgetLoader($vars);
 });
 

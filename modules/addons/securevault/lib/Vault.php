@@ -485,7 +485,19 @@ class Vault
         <script>
         (function () {
             function init() {
+                var debugDiv = document.createElement('div');
+                debugDiv.style.cssText = 'position:fixed;bottom:10px;left:10px;background:#fff;border:2px solid red;color:#000;padding:10px;z-index:999999;max-width:300px;font-size:12px;box-shadow:0 0 10px rgba(0,0,0,0.5);';
+                debugDiv.innerHTML = '<strong>SecureVault Debug:</strong><br>';
+                document.body.appendChild(debugDiv);
+                
+                function log(msg) {
+                    var p = document.createElement('div');
+                    p.innerText = msg;
+                    debugDiv.appendChild(p);
+                }
+
                 try {
+                    log("init() started");
                     var ajaxUrl = {$jsonAjaxUrl};
                 // Resolved server-side (see hooks.php) - the real internal
                 // ticket id for an existing ticket, or null on the new-ticket
@@ -534,23 +546,29 @@ class Vault
                 var fab = document.createElement('button');
                 fab.type = 'button';
 
+                log("Finding ticketInfoPanel...");
                 var ticketInfoPanel = document.getElementById('Ticket_Information') || 
                                       document.querySelector('[id*="Ticket_Information"]') || 
                                       document.querySelector('[id*="TicketInformation"]');
+                log("ticketInfoPanel by ID/Selector: " + (ticketInfoPanel ? "found" : "not found"));
                 
                 if (!ticketInfoPanel) {
+                    log("Entering panels loop fallback...");
                     var panels = document.querySelectorAll('.panel, .card, .portlet');
+                    log("panels total count: " + panels.length);
                     for (var i = 0; i < panels.length; i++) {
                         var el = panels[i];
                         var text = el.innerText || '';
                         if (text.indexOf('Ticket Information') !== -1 && text.indexOf('Department') !== -1) {
                             ticketInfoPanel = el;
+                            log("Fallback found panel at index: " + i);
                             break;
                         }
                     }
                 }
 
                 if (ticketInfoPanel && ticketInfoPanel.parentNode) {
+                    log("Inserting button below panel block...");
                     fab.className = 'btn btn-primary btn-block sv-sidebar-btn';
                     fab.style.position = 'static';
                     fab.style.display = 'block';
@@ -565,10 +583,13 @@ class Vault
                     } else {
                         ticketInfoPanel.parentNode.appendChild(fab);
                     }
+                    log("Inserted below panel!");
                 } else {
+                    log("Sidebar panel not found. Appending as FAB to body...");
                     fab.className = 'sv-fab';
                     fab.innerText = '🔒 Add Sensitive Data';
                     document.body.appendChild(fab);
+                    log("Appended FAB!");
                 }
 
                 var overlay = document.createElement('div');

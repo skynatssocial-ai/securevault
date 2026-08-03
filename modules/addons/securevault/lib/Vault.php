@@ -725,188 +725,196 @@ class Vault
         </div>
         <script>
         (function () {
-            var root = document.getElementById(<?php echo json_encode($uid); ?>);
-            if (!root) { return; }
-            var ticketId = <?php echo (int) $ticketId; ?>;
-            var ajaxUrl = <?php echo json_encode($ajaxUrl); ?>;
-            var csrfToken = <?php echo json_encode($token); ?>;
-            var fab = root.querySelector('.sv-fab');
-            var overlay = root.querySelector('.sv-overlay');
-            var listEl = root.querySelector('.sv-list');
-            var labelInput = root.querySelector('.sv-label');
-            var valueInput = root.querySelector('.sv-value');
+            function init() {
+                var root = document.getElementById(<?php echo json_encode($uid); ?>);
+                if (!root) { return; }
+                var ticketId = <?php echo (int) $ticketId; ?>;
+                var ajaxUrl = <?php echo json_encode($ajaxUrl); ?>;
+                var csrfToken = <?php echo json_encode($token); ?>;
+                var fab = root.querySelector('.sv-fab');
+                var overlay = root.querySelector('.sv-overlay');
+                var listEl = root.querySelector('.sv-list');
+                var labelInput = root.querySelector('.sv-label');
+                var valueInput = root.querySelector('.sv-value');
 
-            // Dynanically inject into the WHMCS View Ticket Reply Toolbar
-            var btnContainer = null;
-            var insertBeforeNode = null;
+                // Dynanically inject into the WHMCS View Ticket Reply Toolbar
+                var btnContainer = null;
+                var insertBeforeNode = null;
 
-            // Try to find the Return to Ticket List checkbox/label
-            var returnCb = document.querySelector('input[name="return"]') || 
-                           document.querySelector('input[name="return_to_list"]') || 
-                           document.getElementById('return') ||
-                           document.getElementById('cbReturn');
-            
-            if (returnCb) {
-                // If the checkbox is wrapped in a label or a bootstrap checkbox wrapper
-                if (returnCb.closest('label')) {
-                    insertBeforeNode = returnCb.closest('label');
-                    btnContainer = insertBeforeNode.parentElement;
-                } else if (returnCb.closest('.checkbox-inline') || returnCb.closest('.checkbox')) {
-                    insertBeforeNode = returnCb.closest('.checkbox-inline') || returnCb.closest('.checkbox');
-                    btnContainer = insertBeforeNode.parentElement;
+                // Try to find the Return to Ticket List checkbox/label
+                var returnCb = document.querySelector('input[name="return"]') || 
+                               document.querySelector('input[name="return_to_list"]') || 
+                               document.getElementById('return') ||
+                               document.getElementById('cbReturn');
+                
+                if (returnCb) {
+                    // If the checkbox is wrapped in a label or a bootstrap checkbox wrapper
+                    if (returnCb.closest('label')) {
+                        insertBeforeNode = returnCb.closest('label');
+                        btnContainer = insertBeforeNode.parentElement;
+                    } else if (returnCb.closest('.checkbox-inline') || returnCb.closest('.checkbox')) {
+                        insertBeforeNode = returnCb.closest('.checkbox-inline') || returnCb.closest('.checkbox');
+                        btnContainer = insertBeforeNode.parentElement;
+                    } else {
+                        insertBeforeNode = returnCb;
+                        btnContainer = returnCb.parentElement;
+                    }
                 } else {
-                    insertBeforeNode = returnCb;
-                    btnContainer = returnCb.parentElement;
-                }
-            } else {
-                // Fallback: Try to find the More options button
-                var moreOptions = Array.from(document.querySelectorAll('button, a, input')).find(function (el) {
-                    var text = el.innerText || el.value || '';
-                    return text.indexOf('More options') !== -1;
-                });
-                if (moreOptions) {
-                    var group = moreOptions.closest('.btn-group') || moreOptions;
-                    btnContainer = group.parentElement;
-                    insertBeforeNode = group.nextSibling;
-                } else {
-                    // Fallback: Try to find the Reply submit button
-                    var replyBtn = document.querySelector('input[type="submit"][value="Reply"]') || 
-                                   document.querySelector('input[type="submit"][value*="Reply"]') ||
-                                   Array.from(document.querySelectorAll('button[type="submit"]')).find(function(el) {
-                                       return el.innerText.indexOf('Reply') !== -1;
-                                   }) ||
-                                   Array.from(document.querySelectorAll('input[type="submit"]')).find(function(el) {
-                                       return el.value.indexOf('Reply') !== -1;
-                                   });
-                    if (replyBtn) {
-                        btnContainer = replyBtn.parentElement;
-                        insertBeforeNode = replyBtn;
+                    // Fallback: Try to find the More options button
+                    var moreOptions = Array.from(document.querySelectorAll('button, a, input')).find(function (el) {
+                        var text = el.innerText || el.value || '';
+                        return text.indexOf('More options') !== -1;
+                    });
+                    if (moreOptions) {
+                        var group = moreOptions.closest('.btn-group') || moreOptions;
+                        btnContainer = group.parentElement;
+                        insertBeforeNode = group.nextSibling;
+                    } else {
+                        // Fallback: Try to find the Reply submit button
+                        var replyBtn = document.querySelector('input[type="submit"][value="Reply"]') || 
+                                       document.querySelector('input[type="submit"][value*="Reply"]') ||
+                                       Array.from(document.querySelectorAll('button[type="submit"]')).find(function(el) {
+                                           return el.innerText.indexOf('Reply') !== -1;
+                                       }) ||
+                                       Array.from(document.querySelectorAll('input[type="submit"]')).find(function(el) {
+                                           return el.value.indexOf('Reply') !== -1;
+                                       });
+                        if (replyBtn) {
+                            btnContainer = replyBtn.parentElement;
+                            insertBeforeNode = replyBtn;
+                        }
                     }
                 }
-            }
 
-            if (btnContainer) {
-                fab.className = 'btn btn-danger btn-sm';
-                fab.style.marginRight = '8px';
-                fab.style.marginBottom = '0px';
-                fab.style.display = 'inline-block';
-                fab.style.position = 'static';
-                fab.style.padding = '6px 12px';
-                fab.style.fontSize = '12px';
-                fab.style.fontWeight = 'normal';
-                fab.style.backgroundColor = '#d9534f';
-                fab.style.borderColor = '#d43f3a';
-                fab.innerText = 'Add Sensitive Data';
+                if (btnContainer) {
+                    fab.className = 'btn btn-danger btn-sm';
+                    fab.style.marginRight = '8px';
+                    fab.style.marginBottom = '0px';
+                    fab.style.display = 'inline-block';
+                    fab.style.position = 'static';
+                    fab.style.padding = '6px 12px';
+                    fab.style.fontSize = '12px';
+                    fab.style.fontWeight = 'normal';
+                    fab.style.backgroundColor = '#d9534f';
+                    fab.style.borderColor = '#d43f3a';
+                    fab.innerText = 'Add Sensitive Data';
 
-                if (insertBeforeNode) {
-                    btnContainer.insertBefore(fab, insertBeforeNode);
+                    if (insertBeforeNode) {
+                        btnContainer.insertBefore(fab, insertBeforeNode);
+                    } else {
+                        btnContainer.appendChild(fab);
+                    }
                 } else {
-                    btnContainer.appendChild(fab);
+                    // Inline fallback if the reply box toolbar is not found
+                    fab.className = 'btn btn-danger btn-sm';
+                    fab.style.display = 'inline-block';
+                    fab.style.position = 'static';
+                    fab.style.marginBottom = '10px';
+                    fab.style.backgroundColor = '#d9534f';
+                    fab.style.borderColor = '#d43f3a';
+                    fab.innerText = 'Add Sensitive Data';
                 }
+
+                function esc(s) {
+                    var d = document.createElement('div');
+                    d.innerText = s == null ? '' : s;
+                    return d.innerHTML;
+                }
+                function post(action, data) {
+                    data = data || {};
+                    data.action = action;
+                    data.token = csrfToken;
+                    data.ticketid = ticketId;
+                    var body = Object.keys(data).map(function (k) {
+                        return encodeURIComponent(k) + '=' + encodeURIComponent(data[k]);
+                    }).join('&');
+                    return fetch(ajaxUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        credentials: 'same-origin',
+                        body: body
+                    }).then(function (r) { return r.json(); });
+                }
+                function render(entries) {
+                    if (!entries.length) {
+                        listEl.innerHTML = '<div class="sv-empty">No entries yet.</div>';
+                        return;
+                    }
+                    var html = '<div class="sv-table-container"><table><tr><th>Label</th><th>Values</th><th>Added by</th><th></th></tr>';
+                    entries.forEach(function (e) {
+                        var badge = e.added_by_type === 'admin'
+                            ? ' <span class="sv-badge sv-badge-admin">staff</span>'
+                            : ' <span class="sv-badge sv-badge-client">client</span>';
+                        var adderName = esc(e.added_by_name || e.added_by_type);
+
+                        html += '<tr data-id="' + e.id + '">' +
+                            '<td style="font-weight:600;color:#334155;">' + esc(e.label) + '</td>' +
+                            '<td class="sv-value-cell"><span class="sv-masked">&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;</span> <button type="button" class="sv-link-btn sv-reveal">reveal</button></td>' +
+                            '<td class="sv-meta">' + adderName + badge + '</td>' +
+                            '<td><button type="button" class="sv-link-btn sv-delete" style="color:#ef4444;">remove</button></td>' +
+                            '</tr>';
+                    });
+                    html += '</table></div>';
+                    listEl.innerHTML = html;
+                }
+                function load() {
+                    listEl.innerHTML = '<div class="sv-empty">Loading...</div>';
+                    post('list').then(function (res) {
+                        if (res.success) { render(res.entries); }
+                        else { listEl.innerHTML = '<div class="sv-empty">' + esc(res.message || 'Failed to load.') + '</div>'; }
+                    }).catch(function (err) {
+                        listEl.innerHTML = '<div class="sv-empty">Connection error or session expired.</div>';
+                    });
+                }
+
+                fab.addEventListener('click', function () { overlay.classList.add('sv-open'); load(); });
+                overlay.querySelector('.sv-close').addEventListener('click', function () { overlay.classList.remove('sv-open'); });
+                overlay.addEventListener('click', function (ev) { if (ev.target === overlay) { overlay.classList.remove('sv-open'); } });
+
+                listEl.addEventListener('click', function (ev) {
+                    var row = ev.target.closest('tr');
+                    if (!row) { return; }
+                    var id = row.getAttribute('data-id');
+                    if (ev.target.classList.contains('sv-reveal')) {
+                        post('reveal', { id: id }).then(function (res) {
+                            if (res.success) {
+                                row.querySelector('.sv-value-cell').innerHTML = '<span class="sv-value">' + esc(res.value) + '</span>';
+                            } else {
+                                alert(res.message || 'Failed to decrypt.');
+                            }
+                        }).catch(function (err) {
+                            alert('Connection error or session expired.');
+                        });
+                    }
+                    if (ev.target.classList.contains('sv-delete')) {
+                        if (!confirm('Remove this entry permanently?')) { return; }
+                        post('delete', { id: id }).then(function (res) {
+                            if (res.success) { row.remove(); }
+                            else { alert(res.message || 'Could not delete entry.'); }
+                        }).catch(function (err) {
+                            alert('Connection error or session expired.');
+                        });
+                    }
+                });
+
+                root.querySelector('.sv-add').addEventListener('click', function () {
+                    var label = labelInput.value.trim();
+                    var value = valueInput.value.trim();
+                    if (!label || !value) { alert('Please fill in both the label and the value(s).'); return; }
+                    post('add', { label: label, value: value }).then(function (res) {
+                        if (res.success) { labelInput.value = ''; valueInput.value = ''; load(); }
+                        else { alert(res.message || 'Could not add entry.'); }
+                    }).catch(function (err) {
+                        alert('Connection error or session expired.');
+                    });
+                });
+            }
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', init);
             } else {
-                // Inline fallback if the reply box toolbar is not found
-                fab.className = 'btn btn-danger btn-sm';
-                fab.style.display = 'inline-block';
-                fab.style.position = 'static';
-                fab.style.marginBottom = '10px';
-                fab.style.backgroundColor = '#d9534f';
-                fab.style.borderColor = '#d43f3a';
-                fab.innerText = 'Add Sensitive Data';
+                init();
             }
-
-            function esc(s) {
-                var d = document.createElement('div');
-                d.innerText = s == null ? '' : s;
-                return d.innerHTML;
-            }
-            function post(action, data) {
-                data = data || {};
-                data.action = action;
-                data.token = csrfToken;
-                data.ticketid = ticketId;
-                var body = Object.keys(data).map(function (k) {
-                    return encodeURIComponent(k) + '=' + encodeURIComponent(data[k]);
-                }).join('&');
-                return fetch(ajaxUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    credentials: 'same-origin',
-                    body: body
-                }).then(function (r) { return r.json(); });
-            }
-            function render(entries) {
-                if (!entries.length) {
-                    listEl.innerHTML = '<div class="sv-empty">No entries yet.</div>';
-                    return;
-                }
-                var html = '<div class="sv-table-container"><table><tr><th>Label</th><th>Values</th><th>Added by</th><th></th></tr>';
-                entries.forEach(function (e) {
-                    var badge = e.added_by_type === 'admin'
-                        ? ' <span class="sv-badge sv-badge-admin">staff</span>'
-                        : ' <span class="sv-badge sv-badge-client">client</span>';
-                    var adderName = esc(e.added_by_name || e.added_by_type);
-
-                    html += '<tr data-id="' + e.id + '">' +
-                        '<td style="font-weight:600;color:#334155;">' + esc(e.label) + '</td>' +
-                        '<td class="sv-value-cell"><span class="sv-masked">&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;</span> <button type="button" class="sv-link-btn sv-reveal">reveal</button></td>' +
-                        '<td class="sv-meta">' + adderName + badge + '</td>' +
-                        '<td><button type="button" class="sv-link-btn sv-delete" style="color:#ef4444;">remove</button></td>' +
-                        '</tr>';
-                });
-                html += '</table></div>';
-                listEl.innerHTML = html;
-            }
-            function load() {
-                listEl.innerHTML = '<div class="sv-empty">Loading...</div>';
-                post('list').then(function (res) {
-                    if (res.success) { render(res.entries); }
-                    else { listEl.innerHTML = '<div class="sv-empty">' + esc(res.message || 'Failed to load.') + '</div>'; }
-                }).catch(function (err) {
-                    listEl.innerHTML = '<div class="sv-empty">Connection error or session expired.</div>';
-                });
-            }
-
-            fab.addEventListener('click', function () { overlay.classList.add('sv-open'); load(); });
-            overlay.querySelector('.sv-close').addEventListener('click', function () { overlay.classList.remove('sv-open'); });
-            overlay.addEventListener('click', function (ev) { if (ev.target === overlay) { overlay.classList.remove('sv-open'); } });
-
-            listEl.addEventListener('click', function (ev) {
-                var row = ev.target.closest('tr');
-                if (!row) { return; }
-                var id = row.getAttribute('data-id');
-                if (ev.target.classList.contains('sv-reveal')) {
-                    post('reveal', { id: id }).then(function (res) {
-                        if (res.success) {
-                            row.querySelector('.sv-value-cell').innerHTML = '<span class="sv-value">' + esc(res.value) + '</span>';
-                        } else {
-                            alert(res.message || 'Failed to decrypt.');
-                        }
-                    }).catch(function (err) {
-                        alert('Connection error or session expired.');
-                    });
-                }
-                if (ev.target.classList.contains('sv-delete')) {
-                    if (!confirm('Remove this entry permanently?')) { return; }
-                    post('delete', { id: id }).then(function (res) {
-                        if (res.success) { row.remove(); }
-                        else { alert(res.message || 'Could not delete entry.'); }
-                    }).catch(function (err) {
-                        alert('Connection error or session expired.');
-                    });
-                }
-            });
-
-            root.querySelector('.sv-add').addEventListener('click', function () {
-                var label = labelInput.value.trim();
-                var value = valueInput.value.trim();
-                if (!label || !value) { alert('Please fill in both the label and the value(s).'); return; }
-                post('add', { label: label, value: value }).then(function (res) {
-                    if (res.success) { labelInput.value = ''; valueInput.value = ''; load(); }
-                    else { alert(res.message || 'Could not add entry.'); }
-                }).catch(function (err) {
-                    alert('Connection error or session expired.');
-                });
-            });
         })();
         </script>
         <?php

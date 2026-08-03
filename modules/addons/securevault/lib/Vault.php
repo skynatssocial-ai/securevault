@@ -485,6 +485,9 @@ class Vault
         <style>{$styles}</style>
         <script>
         (function () {
+            if (window.sv_client_widget_loaded) { return; }
+            window.sv_client_widget_loaded = true;
+
             function init() {
                 var debugDiv = null;
                 function log(msg) {

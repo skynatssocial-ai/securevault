@@ -33,12 +33,20 @@ add_hook('AdminAreaViewTicketPage', 1, function ($vars) {
 // ClientAreaFooterOutput and relied on them firing in that order within
 // the same request, which WHMCS does not actually guarantee).
 
-// Capture smarty template variables for footer loader
+// Capture smarty template variables for loader
 add_hook('ClientAreaPage', 1, function ($vars) {
     Vault::storeClientPageVars($vars);
     return [];
 });
 
+// Output loader wired to all client output hooks to ensure compatibility
+// with custom themes that may omit {$footeroutput} or {$headoutput} in templates.
+add_hook('ClientAreaHeaderOutput', 1, function ($vars) {
+    return Vault::renderClientWidgetLoader($vars);
+});
+add_hook('ClientAreaHeadOutput', 1, function ($vars) {
+    return Vault::renderClientWidgetLoader($vars);
+});
 add_hook('ClientAreaFooterOutput', 1, function ($vars) {
     return Vault::renderClientWidgetLoader($vars);
 });

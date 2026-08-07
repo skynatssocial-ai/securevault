@@ -415,8 +415,10 @@ class Vault
         $ticketId = (int) $ticketId;
         $ajaxUrl = self::ajaxUrl();
         $uid = 'sv_admin_' . $ticketId;
+        $count = Capsule::table('mod_securevault_data')->where('ticket_id', $ticketId)->count();
+        $hasData = ($count > 0);
 
-        return self::renderModalMarkup($uid, 'existing', $ticketId, $ajaxUrl, true);
+        return self::renderModalMarkup($uid, 'existing', $ticketId, $ajaxUrl, true, $hasData);
     }
 
     /**
@@ -504,18 +506,19 @@ class Vault
      * version; admin side doesn't need the "new ticket" staging flow since
      * the admin is always looking at a ticket that already exists).
      */
-    protected static function renderModalMarkup($uid, $mode, $ticketId, $ajaxUrl, $isAdmin)
+    protected static function renderModalMarkup($uid, $mode, $ticketId, $ajaxUrl, $isAdmin, $hasData = false)
     {
         $styles = self::sharedStyles();
         $token = '';
         if (class_exists('\WHMCS\Session\Token')) {
             $token = \WHMCS\Session\Token::get();
         }
+        $btnText = $hasData ? 'Show Sensitive Data' : 'Add Sensitive Data';
         ob_start();
         ?>
         <style><?php echo $styles; ?></style>
         <div id="<?php echo $uid; ?>">
-            <button type="button" class="sv-fab" style="position:static;display:none;">Add Sensitive Data</button>
+            <button type="button" class="sv-fab" style="position:static;display:none;"><?php echo htmlspecialchars($btnText); ?></button>
             <div class="sv-overlay">
                 <div class="sv-modal">
                     <div class="sv-modal-header">
@@ -547,6 +550,17 @@ class Vault
                 var listEl = root.querySelector('.sv-list');
                 var labelInput = root.querySelector('.sv-label');
                 var valueInput = root.querySelector('.sv-value');
+                var initialText = <?php echo json_encode($btnText); ?>;
+
+                function updateBtnText(count) {
+                    var isFab = fab.classList.contains('sv-fab');
+                    var prefix = isFab ? '🔒 ' : '';
+                    if (count > 0) {
+                        fab.innerText = prefix + 'Show Sensitive Data';
+                    } else {
+                        fab.innerText = prefix + 'Add Sensitive Data';
+                    }
+                }
 
                 // Dynanically inject into the WHMCS View Ticket Reply Toolbar
                 var btnContainer = null;
@@ -620,7 +634,7 @@ class Vault
                     fab.style.fontWeight = 'normal';
                     fab.style.backgroundColor = '#d9534f';
                     fab.style.borderColor = '#d43f3a';
-                    fab.innerText = 'Add Sensitive Data';
+                    fab.innerText = initialText;
 
                     if (insertBeforeNode) {
                         btnContainer.insertBefore(fab, insertBeforeNode);
@@ -635,7 +649,7 @@ class Vault
                     fab.style.marginBottom = '10px';
                     fab.style.backgroundColor = '#d9534f';
                     fab.style.borderColor = '#d43f3a';
-                    fab.innerText = 'Add Sensitive Data';
+                    fab.innerText = initialText;
                 }
 
                 function esc(s) {
@@ -659,6 +673,7 @@ class Vault
                     }).then(function (r) { return r.json(); });
                 }
                 function render(entries) {
+                    updateBtnText(entries.length);
                     if (!entries.length) {
                         listEl.innerHTML = '<div class="sv-empty">No entries yet.</div>';
                         return;
@@ -712,7 +727,7 @@ class Vault
                     if (ev.target.classList.contains('sv-delete')) {
                         if (!confirm('Remove this entry permanently?')) { return; }
                         post('delete', { id: id }).then(function (res) {
-                            if (res.success) { row.remove(); }
+                            if (res.success) { row.remove(); load(); }
                             else { alert(res.message || 'Could not delete entry.'); }
                         }).catch(function (err) {
                             alert('Connection error or session expired.');

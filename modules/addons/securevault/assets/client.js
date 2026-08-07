@@ -153,7 +153,18 @@
     // Render helpers
     // ----------------------------------------------------------------
 
+    function updateButtonText(count) {
+        var isFab = fab.classList.contains('sv-fab');
+        var prefix = isFab ? '\uD83D\uDD12 ' : '';
+        if (count > 0) {
+            fab.innerText = prefix + 'Show Sensitive Data';
+        } else {
+            fab.innerText = prefix + 'Add Sensitive Data';
+        }
+    }
+
     function renderRows(rows, opts) {
+        updateButtonText(rows.length);
         if (!rows.length) {
             listEl.innerHTML = '<div class="sv-empty">No entries yet.</div>';
             return;
@@ -197,6 +208,15 @@
 
     function renderPending() { renderRows(pending, { pending: true }); }
 
+    // Initial check on load for existing tickets
+    if (!isNew && ticketId) {
+        post('list').then(function (res) {
+            if (res.success && res.entries) {
+                updateButtonText(res.entries.length);
+            }
+        }).catch(function () {});
+    }
+
     listEl.addEventListener('click', function (ev) {
         var row = ev.target.closest('tr');
         if (!row) { return; }
@@ -220,7 +240,7 @@
                 renderPending();
             } else {
                 post('delete', { id: id }).then(function (res) {
-                    if (res.success) { row.remove(); }
+                    if (res.success) { load(); }
                     else { alert(res.message || 'Could not delete entry.'); }
                 }).catch(function () { alert('Connection error or session expired.'); });
             }

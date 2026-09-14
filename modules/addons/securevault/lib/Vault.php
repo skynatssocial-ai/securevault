@@ -415,7 +415,7 @@ class Vault
         $ticketId = (int) $ticketId;
         $ajaxUrl = self::ajaxUrl();
         $uid = 'sv_admin_' . $ticketId;
-        $count = Capsule::table('mod_securevault_data')->where('ticket_id', $ticketId)->count();
+        $count = Capsule::table('mod_securevault_entries')->where('ticket_id', $ticketId)->count();
         $hasData = ($count > 0);
 
         return self::renderModalMarkup($uid, 'existing', $ticketId, $ajaxUrl, true, $hasData);

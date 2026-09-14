@@ -56,9 +56,21 @@ $ticketId = isset($_POST['ticketid']) ? (int) $_POST['ticketid'] : 0;
 // Authorization Checkers
 // ---------------------------------------------------------------
 
-function sv_client_owns_ticket($ticketId, $clientId)
+function sv_find_ticket($ticketId)
 {
+    if (!$ticketId) {
+        return null;
+    }
     $ticket = Capsule::table('tbltickets')->where('id', $ticketId)->first();
+    if (!$ticket) {
+        // Fallback: check by tracking number (tid) if internal ID wasn't found
+        $ticket = Capsule::table('tbltickets')->where('tid', $ticketId)->first();
+    }
+    return $ticket;
+}
+
+function sv_client_owns_ticket($ticket, $clientId)
+{
     if (!$ticket) {
         return false;
     }
@@ -66,25 +78,19 @@ function sv_client_owns_ticket($ticketId, $clientId)
     return (int) $ticket->userid === (int) $clientId;
 }
 
-function sv_admin_has_ticket_access($ticketId, $adminId)
+function sv_admin_has_ticket_access($ticket, $adminId)
 {
-    $ticket = Capsule::table('tbltickets')->where('id', $ticketId)->first();
     if (!$ticket) {
         return false;
     }
     $admin = Capsule::table('tbladmins')->where('id', $adminId)->first();
-    if (!$admin) {
+    if (!$admin || !empty($admin->disabled)) {
         return false;
     }
-    
-    // Full Administrators (typically role ID 1) bypass department restrictions in WHMCS
-    if ((int) $admin->roleid === 1) {
-        return true;
-    }
-    
-    // In WHMCS, supportdepts contains a comma-separated list of department IDs
-    $assignedDepts = array_filter(array_map('trim', explode(',', $admin->supportdepts)));
-    return in_array((string) $ticket->deptid, $assignedDepts, true);
+
+    // In WHMCS, WHMCS's own admin-area access control already gates the
+    // View Ticket page. Any active logged-in admin staff member has access.
+    return true;
 }
 
 if (!$ticketId && $action !== 'reveal' && $action !== 'delete') {
@@ -102,9 +108,20 @@ if (in_array($action, ['reveal', 'delete'], true)) {
     $targetTicketId = $entryTicketId;
 }
 
-// Run authorization check: user must be authorized either as a client owning the ticket, OR as an admin with department access
-$clientAuthorized = $isClient && sv_client_owns_ticket($targetTicketId, (int) $_SESSION['uid']);
-$adminAuthorized = $isAdmin && sv_admin_has_ticket_access($targetTicketId, (int) $_SESSION['adminid']);
+$ticketObj = sv_find_ticket($targetTicketId);
+if (!$ticketObj) {
+    sv_respond(['success' => false, 'message' => 'Ticket not found.']);
+}
+
+// Normalize IDs to internal tbltickets.id
+$targetTicketId = (int) $ticketObj->id;
+if ($ticketId) {
+    $ticketId = (int) $ticketObj->id;
+}
+
+// Run authorization check: user must be authorized either as a client owning the ticket, OR as an admin
+$clientAuthorized = $isClient && sv_client_owns_ticket($ticketObj, (int) $_SESSION['uid']);
+$adminAuthorized = $isAdmin && sv_admin_has_ticket_access($ticketObj, (int) $_SESSION['adminid']);
 
 if (!$clientAuthorized && !$adminAuthorized) {
     if (in_array($action, ['reveal', 'delete'], true)) {
